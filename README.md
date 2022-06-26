@@ -1,9 +1,3 @@
-# Welcome to GitHub Desktop!
-
-This is your README. READMEs are where you can communicate what your project is and how to use it.
-
-Write your name on line 6, save it, and then head back to GitHub Desktop.
-
 Power Imbalance read me below
 
 # Python exercise
@@ -43,3 +37,8 @@ We need to create a daily report of the system imbalance cost and price for the 
 3. Generate a message that provides the total daily imbalance cost and the daily imbalance unit rate.
 4. Report which Hour had the highest absolute imbalance volumes.
 5. Extra analysis or plotting will be appreciated. 
+
+
+Personal API key put into code, found some other guys code online which calls exactly what I'm wanting (B170 + B180). Data is not yet in half hourly format and need to clean it out.
+
+Still a lot of work to do with regards to data analysis and tweaking the data to what I want 
