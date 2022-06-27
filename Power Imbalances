@@ -101,3 +101,11 @@ if __name__ == "__main__":
     final = pd.concat(dataset.values(), axis=1)
     final = final.loc[:, ~final.columns.duplicated()]
     final.to_csv("./data/final.csv")
+
+
+#Below was meant to pull max value from the imbalance table and would also do the same for B1780 however I'm getting parse errors
+
+###df=pd.read_csv('/Users/davidgooddy/Desktop/B1770-2022-06-01.csv')
+###df.iloc[df['ImbalancePriceAmount'].idxmax(), 0]
+
+###print(q)
