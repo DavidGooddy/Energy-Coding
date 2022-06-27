@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     dataset = defaultdict(list)
     for rep in reports:
-        for date in pd.date_range("2020-01-01", "2020-01-03", freq="D"):
+        for date in pd.date_range("2022-06-01", "2022-06-01", freq="D"):
             dataset[rep.report].append(
                 send_elexon_request(ElexonRequest(report=rep.report, date=date))
             )
