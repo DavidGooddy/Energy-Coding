@@ -1,0 +1,129 @@
+from collections import defaultdict
+from contextlib import AsyncExitStack
+import datetime
+from pathlib import Path
+import requests
+import pandas as pd
+import numpy as np
+import matplotlib as plt
+import pydantic
+
+# Importing numpy, pandas and matplot lib as for analysis on the data
+
+
+api_key = 'fsuu4dnarn927ln'
+
+
+class ElexonRequest(pydantic.BaseModel):
+    report: str
+    date: datetime.date
+    api_key: pydantic.SecretStr = pydantic.SecretStr(api_key)
+    service_type: str = "csv"
+
+
+class ElexonReport(pydantic.BaseModel):
+    report: str
+    columns: list
+
+
+def send_elexon_request(req: ElexonRequest) -> pd.DataFrame:
+    url = f"https://api.bmreports.com/BMRS/{req.report}/v1?APIKey={req.api_key.get_secret_value()}&Period=*&SettlementDate={req.date.isoformat()}&ServiceType={req.service_type}"
+    res = requests.get(url)
+    assert res.status_code == 200
+
+    fi = Path().cwd() / "data" / f"{req.report}-{req.date}.csv"
+    fi.parent.mkdir(exist_ok=True)
+    fi.write_text(res.text)
+
+    data = pd.read_csv(fi, skiprows=4)
+    #  B1770 has SettlementDate, B1780 has Settlement Date
+    data.columns = [d.replace(" ", "") for d in data.columns]
+    return data.dropna(axis=0, subset=["SettlementDate"])
+
+
+if __name__ == "__main__":
+    reports = [
+        ElexonReport(
+            report="B1770",
+            columns=[
+                "SettlementDate",
+                "SettlementPeriod",
+                "ImbalancePriceAmount",
+                "PriceCategory",
+            ],
+        ),
+        ElexonReport(
+            report="B1780",
+            columns=[
+                "SettlementDate",
+                "SettlementPeriod",
+                "ImbalanceQuantity(MAW)",
+                "ImbalanceQuantityDirection",
+            ],
+        ),
+    ]
+
+    dataset = defaultdict(list)
+    for rep in reports:
+        for date in pd.date_range("2022-06-01", "2022-06-01", freq="D"):
+            dataset[rep.report].append(
+                send_elexon_request(ElexonRequest(report=rep.report, date=date))
+            )
+    
+    imbalance_total = 0
+    for report, data in dataset.items():
+        raw_data = data
+        imbalances =raw_data[0]['ImbalancePriceAmount']
+        imbalance_total += imbalances.sum()
+        print(imbalance_total)
+        
+    
+        datas = pd.concat(data, axis=0)
+        datas.to_csv(f"./data/{report}-all.csv")
+        print(f"combined {len(datas)} days for {report} into {datas.shape}")
+
+    dataset = {}
+    for rep in reports:
+        data = pd.read_csv(f"./data/{rep.report}-all.csv").loc[:, rep.columns]
+
+        if rep.report == "B1770":
+            data = (
+                data.pivot(
+                    index=["SettlementDate", "SettlementPeriod"],
+                    columns="PriceCategory",
+                    values="ImbalancePriceAmount",
+                )
+                .sort_index()
+                .reset_index()
+            )
+
+        data = data.sort_values(["SettlementDate", "SettlementPeriod"])
+        data["datetime"] = pd.date_range(
+            start=data["SettlementDate"].min(),
+            periods=len(data),
+            freq="30T",
+            tz="Europe/London",
+        )
+        
+        
+    dataset[rep.report] = data.set_index("datetime")
+            
+    dataset['ImbalancePriceAmount'].rolling(window =20).mean().plot()
+           
+    
+    df=pd.read_csv('/Users/davidgooddy/Desktop/B1770-2022-06-01.csv')
+###df.iloc[df['ImbalancePriceAmount'].idxmax(), 0]
+    ###sum = df['ImbalancePriceAmount'].sum(axis=1)        
+    ###print(sum)
+    final = pd.concat(dataset.values(), axis=1)
+    final = final.loc[:, ~final.columns.duplicated()]
+    final.to_csv("./data/final.csv")
+    
+
+#Below was meant to pull max value from the imbalance table and would also do the same for B1780 however I'm getting parse errors
+
+###df=pd.read_csv('/Users/davidgooddy/Desktop/B1770-2022-06-01.csv')
+###df.iloc[df['ImbalancePriceAmount'].idxmax(), 0]
+
+###print(q)
+
